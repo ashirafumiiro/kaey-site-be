@@ -1,0 +1,120 @@
+service: store-api
+
+custom:
+  secrets: ${file(secrets.json)}
+  serverless-offline:
+    httpPort: 8000
+    websocketPort: 8001
+    lambdaPort: 8002
+  s3:
+    host: localhost
+    cors: ../s3-cors.xml
+    allowMismatchedSignatures: true
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  timeout: 10
+  stage: dev
+  region: us-east-1
+  lambdaHashingVersion: 20201221
+  environment:
+    JWT_SECRET: ${self:custom.secrets.JWT_SECRET}
+    MONGODB_URI: ${self:custom.secrets.MONGODB_URI}
+    BUCKET: kaey-ug-uploads
+
+functions:
+  verify-token:
+    handler: handlers/verifyToken.auth
+
+  login:
+    handler: handlers/auth.login
+    events:
+      - http:
+          path: login
+          method: post
+          cors: true
+
+  register:
+    handler: handlers/auth.register
+    events:
+      - http:
+          path: register
+          method: post
+          cors: true
+
+  me:
+    handler: handlers/auth.me
+    events:
+      - http:
+          path: me
+          method: get
+          cors: true
+          authorizer: verify-token
+
+  getUsers:
+    handler: handlers/user.getUsers
+    events:
+      - http:
+          path: users
+          method: get
+          cors: true
+
+  uploader:
+    handler: handlers/store.upload
+    events:
+      - http: 
+          path: file/upload
+          method: post
+          cors: true
+    role: UploadRole  
+
+plugins:
+  - serverless-offline
+  - serverless-s3-local
+
+resources:
+  Resources:
+    KaeyUgBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: kaey-ug-uploads
+        AccessControl: PublicRead
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders: ["*"]
+              AllowedMethods: ['PUT']
+              AllowedOrigins: ['*']
+    UploadRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: upload-policy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:PutObject
+                    - s3:PutObjectAcl
+                  Resource:
+                    !Sub
+                      - "arn:aws:s3:::${BucketName}/*"
+                      - {BucketName: !Ref KaeyUgBucket}
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    Fn::Sub:
+                      - arn:aws:logs:${Region}:${AccountId}:log-group:/aws/lambda/*:*:*
+                      - { Region: !Ref AWS::Region, AccountId: !Ref AWS::AccountId }
