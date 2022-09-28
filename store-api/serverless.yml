@@ -67,7 +67,33 @@ functions:
           path: file/upload
           method: post
           cors: true
+          authorizer: verify-token
     role: UploadRole  
+
+  create:
+    handler: handlers/store.create
+    events:
+      - http:
+          path: store
+          method: post
+          cors: true
+          authorizer: verify-token
+
+  geStore:
+    handler: handlers/store.getAll
+    events:
+      - http:
+          path: store
+          method: get
+          cors: true
+
+  delete:
+    handler: handlers/store.delete
+    events:
+     - http:
+         path: store/{id}
+         method: delete
+         cors: true
 
 plugins:
   - serverless-offline

@@ -18,7 +18,7 @@ module.exports.register = (event, context) => {
     .catch(err => ({
       statusCode: err.statusCode || 500,
       headers: { 'Content-Type': 'text/plain' },
-      body: err.message
+      body: JSON.stringify(err.message)
     }));
 };
 
@@ -33,11 +33,15 @@ module.exports.login = (event, context) => {
       statusCode: 200,
       body: JSON.stringify(session)
     }))
-    .catch(err => ({
-      statusCode: err.statusCode || 500,
+    .catch(err => {
+      let statusCode = err.message === 'The credentials do not match.' ? 400 : 
+        err.message === 'User with that email does not exits.' ? 404: 500
+      return ({
+        statusCode: statusCode,
       headers: { 'Content-Type': 'text/plain' },
-      body: { stack: err.stack, message: err.message }
-    }));
+      body: JSON.stringify({ message: err.message })
+    })}
+    );
 };
 
 /* 
@@ -100,7 +104,7 @@ function comparePassword(eventPassword, user) {
     .then(passwordIsValid =>
       !passwordIsValid
         ? Promise.reject(new Error('The credentials do not match.'))
-        : signToken(userId)
+        : signToken(user._id)
     );
 }
 
@@ -117,7 +121,7 @@ module.exports.me = (event, context) => {
     .catch(err => ({
       statusCode: err.statusCode || 500,
       headers: { 'Content-Type': 'text/plain' },
-      body: { stack: err.stack, message: err.message }
+      body: JSON.stringify({ message: err.message })
     }));
 };
 

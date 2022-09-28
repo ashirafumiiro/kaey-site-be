@@ -22,6 +22,7 @@ module.exports.auth = (event, context, callback) => {
 
     // check header or url parameters or post parameters for token
     const token = event.authorizationToken;
+    console.log('Token:', token)
 
     if (!token)
         return callback(null, 'Unauthorized');
