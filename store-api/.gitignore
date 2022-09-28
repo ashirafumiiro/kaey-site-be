@@ -6,4 +6,5 @@ jspm_packages
 .serverless
 secrets.json
 api.rest
+api.local.rest
 buckets

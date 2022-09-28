@@ -50,7 +50,8 @@ functions:
           path: me
           method: get
           cors: true
-          authorizer: verify-token
+          authorizer: 
+            name: verify-token
 
   getUsers:
     handler: handlers/user.getUsers
@@ -67,7 +68,7 @@ functions:
           path: file/upload
           method: post
           cors: true
-          authorizer: verify-token
+
     role: UploadRole  
 
   create:
@@ -77,7 +78,6 @@ functions:
           path: store
           method: post
           cors: true
-          authorizer: verify-token
 
   geStore:
     handler: handlers/store.getAll

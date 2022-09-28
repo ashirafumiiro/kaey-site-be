@@ -1,8 +1,10 @@
 const AWS = require('aws-sdk');
+const jwt = require('jsonwebtoken');
 const uuid = require("uuid").v4;
 var mime = require('mime-types')
 var Item = require('../models/item');
 const connectToDatabase = require('../db');
+const AppError = require('../utils/AppError')
 
 const BUCKET = process.env.BUCKET;
 
@@ -17,40 +19,48 @@ const s3 = new AWS.S3(
 );
 
 module.exports.upload = async (event) => {
-  try {
-    // const { filename, data } = extractFile(event)
-    // await s3.putObject({ Bucket: BUCKET, Key: filename, ACL: 'public-read', Body: data }).promise();
-    const eventBody = JSON.parse(event.body);
-    const filename = eventBody.filename;
-    const ext = filename.split('.').pop();
-    const uid = `${uuid()}.${ext}`;
-    const mimeType = mime.lookup(filename)
+  return manualAuthorization(event)
+    .then(() => {
+      try {
+        // const { filename, data } = extractFile(event)
+        // await s3.putObject({ Bucket: BUCKET, Key: filename, ACL: 'public-read', Body: data }).promise();
+        const eventBody = JSON.parse(event.body);
+        const filename = eventBody.filename;
+        const ext = filename.split('.').pop();
+        const uid = `${uuid()}.${ext}`;
+        const mimeType = mime.lookup(filename)
 
-    const s3Params = {
-      Bucket: BUCKET,
-      Key: uid,
-      ContentType: mimeType,
-      CacheControl: 'max-age=31557600',
-      ACL: 'public-read',
-    }
-    let uploadURL = s3.getSignedUrl('putObject', s3Params)
+        const s3Params = {
+          Bucket: BUCKET,
+          Key: uid,
+          ContentType: mimeType,
+          CacheControl: 'max-age=31557600',
+          ACL: 'public-read',
+        }
+        let uploadURL = s3.getSignedUrl('putObject', s3Params)
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ link: uploadURL })
-    }
-  } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: err.stack })
-    }
-  }
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ link: uploadURL })
+        }
+      } catch (err) {
+        throw err
+      }
+    })
+    .catch(err => {
+      return {
+        statusCode: err.statusCode || 500,
+        body: JSON.stringify({ message: err.message })
+      }
+
+    })
 }
 
 module.exports.create = async (event, context) => {
   var userId = event.requestContext.authorizer.principalId
   context.callbackWaitsForEmptyEventLoop = false;
   return connectToDatabase()
+    .then(() => manualAuthorization(event))
     .then(() =>
       create(JSON.parse(event.body))
     )
@@ -102,19 +112,36 @@ function getAll() {
     .catch(err => Promise.reject(new Error(err)));
 }
 
-module.exports.delete = (event, context, callback) => {
+module.exports.delete = (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
-
-  connectToDatabase()
-    .then(() => {
-      Item.findByIdAndRemove(event.pathParameters.id)
-        .then(item => callback(null, {
-          statusCode: 200,
-          body: JSON.stringify({ message: 'Removed item with id: ' + item._id, id: item._id})
+  return manualAuthorization(event)
+    .then(() =>
+      connectToDatabase()
+        .then(async () => {
+          const item = await Item.findByIdAndRemove(event.pathParameters.id)
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ message: 'Removed item with id: ' + item._id, id: item._id })
+          }
         }))
-        .catch(err => callback(null, {
-          statusCode: err.statusCode || 500,
-          body: JSON.stringify({message: "Couldn't perform action"})
-        }));
-    });
+    .catch(err => ({
+      statusCode: err.statusCode || 500,
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ message: err.message })
+    }));
 };
+
+async function manualAuthorization(event) {
+  const token = event.headers['authorization'];
+  console.log('Headers:', event.headers)
+  console.log('Token:', token)
+
+  if (!token)
+    throw new AppError("No token specified", 401)
+
+  // verifies secret and checks exp
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err)
+      throw new AppError("Invalid token", 401)
+  });
+}
