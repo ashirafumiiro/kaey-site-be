@@ -13,10 +13,18 @@ module.exports.register = (event, context) => {
     )
     .then(session => ({
       statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
       body: JSON.stringify(session)
     }))
     .catch(err => ({
       statusCode: err.statusCode || 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(err.message)
     }));
@@ -31,6 +39,10 @@ module.exports.login = (event, context) => {
     )
     .then(session => ({
       statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
       body: JSON.stringify(session)
     }))
     .catch(err => {
@@ -38,8 +50,11 @@ module.exports.login = (event, context) => {
         err.message === 'User with that email does not exits.' ? 404: 500
       return ({
         statusCode: statusCode,
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ message: err.message })
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': true,
+        },
+        body: JSON.stringify({ message: err.message })
     })}
     );
 };
@@ -116,11 +131,18 @@ module.exports.me = (event, context) => {
     )
     .then(session => ({
       statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
       body: JSON.stringify(session)
     }))
     .catch(err => ({
       statusCode: err.statusCode || 500,
-      headers: { 'Content-Type': 'text/plain' },
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
       body: JSON.stringify({ message: err.message })
     }));
 };

@@ -41,6 +41,10 @@ module.exports.upload = async (event) => {
 
         return {
           statusCode: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Credentials': true,
+          },
           body: JSON.stringify({ link: uploadURL })
         }
       } catch (err) {
@@ -50,6 +54,10 @@ module.exports.upload = async (event) => {
     .catch(err => {
       return {
         statusCode: err.statusCode || 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': true,
+        },
         body: JSON.stringify({ message: err.message })
       }
 
@@ -57,19 +65,26 @@ module.exports.upload = async (event) => {
 }
 
 module.exports.create = async (event, context) => {
-  var userId = event.requestContext.authorizer.principalId
   context.callbackWaitsForEmptyEventLoop = false;
-  return connectToDatabase()
-    .then(() => manualAuthorization(event))
+  return manualAuthorization(event)
+    .then(() => connectToDatabase())
     .then(() =>
       create(JSON.parse(event.body))
     )
     .then(item => ({
       statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
       body: JSON.stringify(item)
     }))
     .catch(err => ({
       statusCode: err.statusCode || 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
       body: JSON.stringify({ message: err.message })
     }));
 }
@@ -97,11 +112,18 @@ module.exports.getAll = (event, context) => {
     .then(getAll)
     .then(items => ({
       statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
       body: JSON.stringify(items)
     }))
     .catch(err => ({
       statusCode: err.statusCode || 500,
-      headers: { 'Content-Type': 'text/plain' },
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
       body: JSON.stringify({ message: err.message })
     }));
 };
@@ -121,20 +143,27 @@ module.exports.delete = (event, context) => {
           const item = await Item.findByIdAndRemove(event.pathParameters.id)
           return {
             statusCode: 200,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Credentials': true,
+            },
             body: JSON.stringify({ message: 'Removed item with id: ' + item._id, id: item._id })
           }
         }))
     .catch(err => ({
       statusCode: err.statusCode || 500,
-      headers: { 'Content-Type': 'text/plain' },
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
       body: JSON.stringify({ message: err.message })
     }));
 };
 
 async function manualAuthorization(event) {
-  const token = event.headers['authorization'];
-  console.log('Headers:', event.headers)
-  console.log('Token:', token)
+  const token = event.headers['authorization'] || event.headers['Authorization'];
+  // console.log('Headers:', event.headers)
+  // console.log('Token:', token)
 
   if (!token)
     throw new AppError("No token specified", 401)
